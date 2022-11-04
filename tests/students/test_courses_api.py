@@ -7,8 +7,11 @@ from students.models import Course, Student
 class Client(APIClient):
     url = '/api/v1/courses/'
 
-    def get_course(self, pk='', **kwargs):
-        return self.get(self.url + pk, **kwargs)
+    def get_course(self, pk, **kwargs):
+        return self.get(f'{self.url}{pk}/', **kwargs)
+
+    def get_course_list(self, **kwargs):
+        return self.get(f'{self.url}', **kwargs)
 
     def add_course(self, load_data):
         return self.post(self.url, data=load_data)
@@ -44,18 +47,18 @@ def student_factory():
 @pytest.mark.django_db
 def test_get_one_course(client, course_factory):
     course = course_factory()
-    response = client.get_course()
+    response = client.get_course(str(course.id))
     data = response.json()
 
     assert response.status_code == 200
-    assert data[0]['id'] == course.id
-    assert data[0]['name'] == course.name
+    assert data['id'] == course.id
+    assert data['name'] == course.name
 
 
 @pytest.mark.django_db
 def test_get_course_list(client, course_factory):
     courses = course_factory(_quantity=10)
-    response = client.get_course()
+    response = client.get_course_list()
     data = response.json()
 
     assert response.status_code == 200
@@ -70,7 +73,7 @@ def test_id_filter(client, course_factory):
     courses = course_factory(_quantity=10)
     for course in courses:
         params = {'id': course.id}
-        response = client.get_course(data=params)
+        response = client.get_course_list(data=params)
         data = response.json()
 
         assert response.status_code == 200
@@ -83,7 +86,7 @@ def test_name_filter(client, course_factory):
     courses = course_factory(_quantity=10)
     for course in courses:
         params = {'name': course.name}
-        response = client.get_course(data=params)
+        response = client.get_course_list(data=params)
         data = response.json()
 
         assert response.status_code == 200
@@ -95,7 +98,7 @@ def test_name_filter(client, course_factory):
 def test_create_course(client):
     load_data = {"name": "python-dev"}
     post = client.add_course(load_data)
-    get = client.get_course()
+    get = client.get_course_list()
     get_data = get.json()
 
     assert post.status_code == 201
@@ -105,21 +108,25 @@ def test_create_course(client):
 
 @pytest.mark.django_db
 def test_update_course(client, course_factory):
-    course_factory()
+    course = course_factory()
     update_data = {"name": "fullstack"}
-    update = client.update_course(1, update_data)
-    response = client.get_course().json()
+    update = client.update_course(course.id, update_data)
+    response = client.get_course(course.id)
+    data = response.json()
 
     assert update.status_code == 200
-    assert response[0]['name'] == update_data['name']
+    assert data['id'] == course.id
+    assert data['name'] == update_data['name']
 
 
 @pytest.mark.django_db
 def test_destroy_course(client, course_factory):
-    course_factory()
-    before = client.get_course()
-    destroy = client.delete_course(1)
-    after = client.get_course()
+    course = course_factory()
+    before = client.get_course_list()
+    destroy = client.delete_course(course.id)
+    after = client.get_course_list()
+    deleted_course = client.get_course(course.id)
 
     assert destroy.status_code == 204
+    assert deleted_course.status_code == 404
     assert len(before.data) == len(after.data) + 1

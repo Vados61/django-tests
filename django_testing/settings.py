@@ -83,8 +83,6 @@ DATABASES = {
         'NAME': 'netology_django_testing',
         'HOST': '127.0.0.1',
         'PORT': '5432',
-        'USER': 'postgres',
-        'PASSWORD': '2465328'
     }
 }
 
